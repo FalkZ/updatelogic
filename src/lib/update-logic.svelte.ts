@@ -14,14 +14,16 @@ type LogicOptions = {
     enforceImmutableData: boolean;
 };
 
-type LogicOptionsInternal = LogicOptions & { immutableData: unknown };
-
 const rawSymbol = Symbol("raw");
 
 // @ts-expect-error: rawSymbol does not exist on any obj
 export const unwrapProxy = <Obj extends object>(obj: Obj): Obj => obj?.[rawSymbol] ?? obj;
 
-const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptionsInternal) => {
+const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) => {
+    // derived should be a let statement
+    // eslint-disable-next-line prefer-const
+    let immutableData = $derived.by(() => snapshot(obj.data));
+
     return new Proxy(obj, {
         get(target, prop, receiver) {
             if (prop === rawSymbol) return target;
@@ -31,7 +33,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptionsIn
                     console.error(`Accessed data before calling initialize(this, [data])`);
                 }
 
-                return options.enforceImmutableData ? options.immutableData : obj.data;
+                return options.enforceImmutableData ? immutableData : obj.data;
             }
 
             const value = Reflect.get(target, prop);
@@ -146,15 +148,10 @@ export const createUpdateLogic = <T extends Logic>(
 ) => {
     const t = new Class();
 
-    // derived should be a let statement
-    // eslint-disable-next-line prefer-const
-    let immutableData = $derived.by(() => snapshot(t.data));
-
-    const internalOptions: LogicOptionsInternal = {
+    const internalOptions: LogicOptions = {
         logging: import.meta.env.DEV,
         enforceImmutableData: true,
         ...options,
-        immutableData,
     };
 
     return createLoggingProxy(t, internalOptions) as T;
