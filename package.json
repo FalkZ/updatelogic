@@ -1,6 +1,6 @@
 {
     "name": "updatelogic",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "license": "MIT",
     "scripts": {
         "dev": "vite dev",
@@ -65,6 +65,7 @@
         "svelte-5",
         "MVC",
         "MVU",
+        "logging",
         "state",
         "management",
         "redux"
