@@ -128,14 +128,13 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
             }
             return value;
         },
-        set(target, prop, value, receiver) {
-            if (prop === "data") {
-                if (options.enforceImmutableData) {
-                    console.error("Tried to set data from outside the logic class to:", value);
-                } else Reflect.set(target, prop, value);
-            } else {
-                Reflect.set(target, prop, value, receiver);
-            }
+        set(target, prop, value) {
+            if (options.enforceImmutableData) {
+                console.error(
+                    `Tried to set "${String(prop)}" from outside the logic class to:`,
+                    value,
+                );
+            } else Reflect.set(target, prop, value);
 
             return true;
         },
