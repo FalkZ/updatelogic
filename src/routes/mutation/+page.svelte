@@ -15,6 +15,8 @@
         mutateOther() {
             this.other = { names: ["other"] };
         }
+
+        log() {}
     }
 
     const logic = createUpdateLogic(Logic);
@@ -22,4 +24,11 @@
     logic.mutateData();
 
     logic.mutateOther();
+
+    logic.data = {};
+
+    logic.data.names = [];
+    logic.other = {};
+
+    logic.log();
 </script>

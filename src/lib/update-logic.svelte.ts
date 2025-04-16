@@ -3,6 +3,7 @@ import { snapshot } from "./snapshot.svelte.js";
 import { isUninitialized } from "./uninitialized.js";
 import { isPromise } from "./utils.js";
 import { log } from "./log.js";
+import { getAllPropertyNames } from "./get-all-property-names.js";
 
 export type Logic<Data extends object = object> = {
     data: Data;
@@ -14,15 +15,19 @@ type LogicOptions = {
     enforceImmutableData: boolean;
 };
 
+type InternalLogicOptions = { className: string } & LogicOptions;
+
 const rawSymbol = Symbol("raw");
 
 // @ts-expect-error: rawSymbol does not exist on any obj
 export const unwrapProxy = <Obj extends object>(obj: Obj): Obj => obj?.[rawSymbol] ?? obj;
 
-const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) => {
+const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicOptions) => {
     // derived should be a let statement
     // eslint-disable-next-line prefer-const
     let immutableData = $derived.by(() => snapshot(obj.data));
+
+    const allPropertyNames = getAllPropertyNames(obj);
 
     return new Proxy(obj, {
         get(target, prop, receiver) {
@@ -50,6 +55,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
                             args,
                             target,
                             prop,
+                            allPropertyNames,
                         });
                     }
 
@@ -70,6 +76,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
                                 start: false,
                                 args,
                                 target,
+                                allPropertyNames,
                                 prop,
                                 error: true,
                                 meta: {
@@ -89,6 +96,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
                                         start: false,
                                         args,
                                         target,
+                                        allPropertyNames,
                                         prop,
                                         meta: {
                                             label: "resolved",
@@ -101,6 +109,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
                                         start: false,
                                         args,
                                         target,
+                                        allPropertyNames,
                                         prop,
                                         error: true,
                                         meta: {
@@ -115,6 +124,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
                                 start: false,
                                 args,
                                 target,
+                                allPropertyNames,
                                 prop,
                                 meta: {
                                     label: "returned",
@@ -131,7 +141,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: LogicOptions) 
         set(target, prop, value) {
             if (options.enforceImmutableData) {
                 console.error(
-                    `Tried to set "${String(prop)}" from outside the logic class to:`,
+                    `Tried to set field "${String(prop)}" from outside the ${options.className} class to:`,
                     value,
                 );
             } else Reflect.set(target, prop, value);
@@ -147,10 +157,13 @@ export const createUpdateLogic = <T extends Logic>(
 ) => {
     const t = new Class();
 
+    const className = Class.name || "<unnamed class>";
+
     const internalOptions: LogicOptions = {
         logging: import.meta.env.DEV,
         enforceImmutableData: true,
         ...options,
+        className,
     };
 
     return createLoggingProxy(t, internalOptions) as T;
