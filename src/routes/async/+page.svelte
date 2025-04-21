@@ -7,7 +7,7 @@
     <input placeholder="Filter Names" onchange={(e) => logic.setFilter(e.currentTarget.value)} />
 
     <ul>
-        {#each logic.data.names as name}
+        {#each logic.data.names as name (name)}
             <li>{name}</li>
         {/each}
     </ul>

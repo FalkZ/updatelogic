@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { snapshot } from "./snapshot.svelte.js";
 import { stringToHexColor } from "./string-to-hex-color.js";
 import type { Logic } from "./update-logic.svelte.js";
@@ -12,9 +13,7 @@ export function getValuesByKeys(obj: object, keys: string[]): Record<string, unk
 
     // Process all properties
     for (const key of keys) {
-        const descriptor =
-            Object.getOwnPropertyDescriptor(obj, key) ||
-            Object.getOwnPropertyDescriptor(Object.getPrototypeOf(obj), key);
+        const descriptor = Object.getOwnPropertyDescriptor(obj, key) || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(obj), key);
         try {
             if (descriptor?.get) {
                 result[key] = (obj as any)[key];
@@ -56,10 +55,7 @@ export const log = ({ start, args, prop, target, error, meta, allPropertyNames }
     console.log(snapshot(getValuesByKeys(target, allPropertyNames)));
 
     if (meta) {
-        console.log(
-            `%c${meta.label.toUpperCase()}:`,
-            "color: gray; font-size: 0.8em; letter-spacing: 3px;",
-        );
+        console.log(`%c${meta.label.toUpperCase()}:`, "color: gray; font-size: 0.8em; letter-spacing: 3px;");
         defaultLog(meta.data);
     }
 

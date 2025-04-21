@@ -137,10 +137,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
         },
         set(target, prop, value) {
             if (options.enforceImmutableData) {
-                console.error(
-                    `Tried to set field "${String(prop)}" from outside the ${options.className} class to:`,
-                    value,
-                );
+                console.error(`Tried to set field "${String(prop)}" from outside the ${options.className} class to:`, value);
             } else Reflect.set(target, prop, value);
 
             return true;
@@ -148,10 +145,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
     }) as Obj;
 };
 
-export const createUpdateLogic = <T extends Logic>(
-    Class: Constructor<T>,
-    options: Partial<LogicOptions> = {},
-) => {
+export const createUpdateLogic = <T extends Logic>(Class: Constructor<T>, options: Partial<LogicOptions> = {}) => {
     const t = new Class();
 
     const className = Class.name || "<unnamed class>";

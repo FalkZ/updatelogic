@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { logic } from "./logic.svelte.js"
-
+    import { logic } from "./logic.svelte.js";
 </script>
 
 <button onclick={logic.increment}>
-	clicks: {logic.data.count}
+    clicks: {logic.data.count}
 </button>

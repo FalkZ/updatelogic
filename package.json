@@ -1,13 +1,13 @@
 {
     "name": "updatelogic",
-    "version": "0.0.12",
+    "version": "0.0.13",
     "license": "MIT",
     "scripts": {
         "dev": "vite dev",
         "build": "vite build && npm run prepack",
         "preview": "vite preview",
         "prepare": "svelte-kit sync || echo ''",
-        "prepack": "svelte-kit sync && svelte-package && publint",
+        "prepack": "svelte-kit sync && svelte-package && pnpm lint && publint",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "format": "prettier --write .",
