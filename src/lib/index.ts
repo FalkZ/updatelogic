@@ -1,2 +1,2 @@
 export { createUpdateLogic } from "./update-logic.svelte.js";
-export { uninitialized, initialize } from "./uninitialized.js";
+export { uninitialized, isInitialized } from "./uninitialized.js";

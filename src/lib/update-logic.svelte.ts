@@ -2,7 +2,7 @@ import type { Constructor } from "type-fest";
 import { snapshot } from "./snapshot.svelte.js";
 import { isUninitialized } from "./uninitialized.js";
 import { isPromise } from "./utils.js";
-import { log } from "./log.js";
+import { getValuesByKeys, log } from "./log.js";
 import { getAllPropertyNames } from "./get-all-property-names.js";
 
 export type Logic<Data extends object = object> = {
@@ -23,23 +23,15 @@ const rawSymbol = Symbol("raw");
 export const unwrapProxy = <Obj extends object>(obj: Obj): Obj => obj?.[rawSymbol] ?? obj;
 
 const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicOptions) => {
+    const allPropertyNames = getAllPropertyNames(obj);
+
     // derived should be a let statement
     // eslint-disable-next-line prefer-const
-    let immutableData = $derived.by(() => snapshot(obj.data));
-
-    const allPropertyNames = getAllPropertyNames(obj);
+    let immutableData = $derived.by(() => snapshot(getValuesByKeys(obj, allPropertyNames)));
 
     return new Proxy(obj, {
         get(target, prop, receiver) {
             if (prop === rawSymbol) return target;
-
-            if (prop === "data") {
-                if (isUninitialized(obj.data)) {
-                    console.error(`Accessed data before calling initialize(this, [data])`);
-                }
-
-                return options.enforceImmutableData ? immutableData : obj.data;
-            }
 
             const value = Reflect.get(target, prop);
 
@@ -136,7 +128,12 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                     return result;
                 };
             }
-            return value;
+
+            if (isUninitialized(value)) {
+                console.error(`Accessed "${String(prop)}" before initializing it.`);
+            }
+
+            return options.enforceImmutableData ? Reflect.get(immutableData, prop) : value;
         },
         set(target, prop, value) {
             if (options.enforceImmutableData) {
@@ -159,7 +156,7 @@ export const createUpdateLogic = <T extends Logic>(
 
     const className = Class.name || "<unnamed class>";
 
-    const internalOptions: LogicOptions = {
+    const internalOptions: InternalLogicOptions = {
         logging: import.meta.env.DEV,
         enforceImmutableData: true,
         ...options,

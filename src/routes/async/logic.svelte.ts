@@ -1,4 +1,4 @@
-import { uninitialized, createUpdateLogic, initialize } from "$lib/index.js";
+import { uninitialized, createUpdateLogic } from "$lib/index.js";
 import type { NamesResponse } from "./api/types.js";
 
 type Data = {
@@ -15,9 +15,8 @@ class Logic {
     initialized = $state(false);
 
     async init() {
-        const { names } = await getNames();
-
-        initialize(this, { names });
+        this.data = await getNames();
+        this.initialized = true;
     }
 
     async setFilter(filter: string) {

@@ -1,58 +1,151 @@
-# Svelte library
+# updatelogic
 
-Everything you need to build a Svelte library, powered by [`sv`](https://npmjs.com/package/sv).
+> Lightweight State Management for Svelte
 
-Read more about creating a library [in the docs](https://svelte.dev/docs/kit/packaging).
+A lightweight, type-safe state management solution for Svelte 5 applications inspired by Elm's Model-View-Update (MVU) architecture.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Centralized State** - Application state is organized in one location
+- **Automatic Updates** - State changes trigger UI updates
+- **Immutability Enforcement** - Prevents external mutation of state
+- **Structured Actions** - Actions and updates follow a consistent pattern within a single class
+- **Zero Config Logging** - Logs actions and state changes during development
+- **Lightweight** - Heavily uses Sveltes reactivity for updates and does not use any dependencies
+
+## When to Use
+
+Updatelogic is ideal for client-side web applications with complex, interdependent state management needs. It particularly if your app's state has grown beyond simple component-level management but you don't want the overhead of Redux or similar libraries, updatelogic offers the perfect solution.
+
+## Installation
 
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+npm install updatelogic
 ```
 
-## Developing
+## Basic Usage
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### 1. Define your logic class
 
-```bash
-npm run dev
+```typescript
+// counter/logic.svelte.ts
+import { createUpdateLogic } from "updatelogic";
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+type Data = {
+    count: number;
+};
+
+class Logic {
+    data: Data = $state({ count: 0 });
+
+    increment() {
+        this.data.count += 1;
+    }
+}
+
+export const logic = createUpdateLogic(Logic);
 ```
 
-Everything inside `src/lib` is part of your library, everything inside `src/routes` can be used as a showcase or preview app.
+### 2. Use the logic in any component
 
-## Building
+```svelte
+<!-- counter/+page.svelte -->
+<script lang="ts">
+    import { logic } from "./logic.svelte.js";
+</script>
 
-To build your library:
-
-```bash
-npm run package
+<button onclick={logic.increment}>
+    clicks: {logic.data.count}
+</button>
 ```
 
-To create a production version of your showcase app:
+## Async Operations
 
-```bash
-npm run build
+Updatelogic handles asynchronous operations elegantly with built-in loading state:
+
+```typescript
+// async/logic.svelte.ts
+import { uninitialized, createUpdateLogic } from "updatelogic";
+
+type Data = {
+    names: string[];
+};
+
+const getNames = async (filter: string = "") => {
+    const response = await fetch(`./async/api?filter=${encodeURIComponent(filter)}`);
+    return response.json();
+};
+
+class Logic {
+    data: Data = $state(uninitialized);
+    initialized = $state(false);
+
+    async init() {
+        this.data = await getNames();
+        this.initialized = true;
+    }
+
+    async setFilter(filter: string) {
+        const { names } = await getNames(filter);
+        this.data = { names };
+    }
+}
+
+export const logic = createUpdateLogic(Logic);
 ```
 
-You can preview the production build with `npm run preview`.
+```svelte
+<!-- async/+page.svelte -->
+<script lang="ts">
+    import { logic } from "./logic.svelte.js";
+    logic.init();
+</script>
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+{#if logic.initialized}
+    <input placeholder="Filter Names" onchange={(e) => logic.setFilter(e.currentTarget.value)} />
 
-## Publishing
+    <ul>
+        {#each logic.data.names as name}
+            <li>{name}</li>
+        {/each}
+    </ul>
+{/if}
+```
 
-Go into the `package.json` and give your package the desired name through the `"name"` option. Also consider adding a `"license"` field and point it to a `LICENSE` file which you can create from a template (one popular option is the [MIT license](https://opensource.org/license/mit/)).
+## Advanced Features
 
-To publish your library to [npm](https://www.npmjs.com):
+### Immutability Enforcement
 
-```bash
-npm publish
+Updatelogic enforces that state can only be mutated within logic class methods, preventing accidental state modifications from outside:
+
+```typescript
+// This works
+logic.increment();
+
+// This will log an error and not change the state
+logic.data.count = 5;
+```
+
+### Development Logging
+
+During development, updatelogic automatically logs all method calls, their arguments, state changes and returns for easier debugging:
+
+```
+┏ increment
+  STATE:
+  { data: { counter: 0 } }
+┗ increment
+  STATE:
+   { data: { counter: 1 } }
+  RETURNED:
+  undefined
+```
+
+### Custom Configuration
+
+```typescript
+const logic = createUpdateLogic(Logic, {
+    logging: true, // Enable logging even in production
+    enforceImmutableData: false, // Allow external data mutations
+});
 ```
