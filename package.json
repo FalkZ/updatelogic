@@ -1,7 +1,12 @@
 {
     "name": "updatelogic",
-    "version": "0.0.13",
+    "version": "0.0.14",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/FalkZ/updatelogic.git",
+        "homepage": "https://github.com/FalkZ/updatelogic"
+    },
     "scripts": {
         "dev": "vite dev",
         "build": "vite build && npm run prepack",
@@ -38,6 +43,7 @@
     "devDependencies": {
         "@eslint/compat": "^1.2.5",
         "@eslint/js": "^9.18.0",
+        "@redux-devtools/extension": "^3.3.0",
         "@sveltejs/adapter-auto": "^4.0.0",
         "@sveltejs/kit": "^2.16.0",
         "@sveltejs/package": "^2.0.0",

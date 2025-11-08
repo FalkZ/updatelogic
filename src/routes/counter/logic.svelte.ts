@@ -5,10 +5,15 @@ type Data = {
 };
 
 class Logic {
-    data: Data = $state({ count: 0 });
+    data: Data = $state({ count: 0, test: 0 });
+    other = $state("");
 
     increment() {
         this.data.count += 1;
+    }
+
+    hello(test, a) {
+        console.log(test, a);
     }
 }
 

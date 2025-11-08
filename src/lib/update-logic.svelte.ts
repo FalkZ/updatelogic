@@ -4,6 +4,7 @@ import { isUninitialized } from "./uninitialized.js";
 import { isPromise } from "./utils.js";
 import { getValuesByKeys, log } from "./log.js";
 import { getAllPropertyNames } from "./get-all-property-names.js";
+import { browser } from "$app/environment";
 
 export type Logic<Data extends object = object> = {
     data: Data;
@@ -19,18 +20,41 @@ type InternalLogicOptions = { className: string } & LogicOptions;
 
 const rawSymbol = Symbol("raw");
 
+export function computed<T>(t: () => T): Readonly<T> {
+    const raw = t();
+    const v = $derived(raw);
+
+    if (typeof raw !== "object" || raw === null) return v;
+
+    return new Proxy(v as typeof raw, {
+        get: (target, p) => target[p as keyof T],
+        // TODO: set with warning mutation
+        getOwnPropertyDescriptor(target, prop) {
+            return Object.getOwnPropertyDescriptor(target, prop);
+        },
+        ownKeys(target) {
+            return Reflect.ownKeys(target);
+        },
+    }) as T;
+}
+
 // @ts-expect-error: rawSymbol does not exist on any obj
 export const unwrapProxy = <Obj extends object>(obj: Obj): Obj => obj?.[rawSymbol] ?? obj;
 
+type DevTools = ReturnType<NonNullable<Window["__REDUX_DEVTOOLS_EXTENSION__"]>["connect"]>;
+
 const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicOptions) => {
+    let devtools: DevTools;
+
     const allPropertyNames = getAllPropertyNames(obj);
 
-    // derived should be a let statement
-    // eslint-disable-next-line prefer-const
-    let immutableData = $derived.by(() => snapshot(getValuesByKeys(obj, allPropertyNames)));
+    if (typeof window !== "undefined" && window.__REDUX_DEVTOOLS_EXTENSION__) {
+        devtools = window.__REDUX_DEVTOOLS_EXTENSION__.connect({ name: options.className });
+        devtools.init(getValuesByKeys(obj, allPropertyNames));
+    }
 
     return new Proxy(obj, {
-        get(target, prop, receiver) {
+        get(target, prop: string | typeof rawSymbol, receiver) {
             if (prop === rawSymbol) return target;
 
             const value = Reflect.get(target, prop);
@@ -49,6 +73,8 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                             prop,
                             allPropertyNames,
                         });
+
+                        devtools?.send({ type: `→ ${prop}`, args }, getValuesByKeys(target, allPropertyNames));
                     }
 
                     let result;
@@ -76,6 +102,8 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                     data: err,
                                 },
                             });
+
+                            devtools?.send({ type: `❌ ${prop}`, args, error: err }, getValuesByKeys(target, allPropertyNames));
                         }
                         throw err;
                     }
@@ -95,6 +123,8 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                             data: value,
                                         },
                                     });
+
+                                    devtools?.send({ type: `✓ ${prop}`, args, return: value }, getValuesByKeys(target, allPropertyNames));
                                 },
                                 (err: unknown) => {
                                     log({
@@ -109,6 +139,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                             data: err,
                                         },
                                     });
+                                    devtools?.send({ type: `❌ ${prop}`, args, error: err }, getValuesByKeys(target, allPropertyNames));
                                 },
                             );
                         } else {
@@ -123,21 +154,30 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                     data: result,
                                 },
                             });
+
+                            devtools?.send({ type: `✓ ${prop}`, args, return: result }, getValuesByKeys(target, allPropertyNames));
                         }
                     }
+
                     return result;
                 };
             }
 
             if (isUninitialized(value)) {
+                // TODO: warn
                 console.error(`Accessed "${String(prop)}" before initializing it.`);
             }
 
-            return options.enforceImmutableData ? Reflect.get(immutableData, prop) : value;
+            if (options.enforceImmutableData) {
+                return computed(() => value);
+            }
+
+            return value;
         },
         set(target, prop, value) {
             if (options.enforceImmutableData) {
-                console.error(`Tried to set field "${String(prop)}" from outside the ${options.className} class to:`, value);
+                // TODO warn
+                console.error(`Tried to set field "${prop}" from outside the ${options.className} class to:`, value);
             } else Reflect.set(target, prop, value);
 
             return true;
