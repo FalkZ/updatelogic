@@ -8,7 +8,7 @@ import type { Logic } from "./update-logic.svelte.js";
  * @param obj - The source object with get methods
  * @returns A plain object with the values extracted from the getters
  */
-export function getValuesByKeys(obj: object, keys: string[]): Record<string, unknown> {
+export function pickObjectKeys(obj: object, keys: string[]): Record<string, unknown> {
     const result: Record<string, unknown> = {};
 
     // Process all properties
@@ -52,7 +52,7 @@ export const log = ({ start, args, prop, target, error, meta, allPropertyNames }
     );
     console.log(`%cSTATE:`, "color: gray; font-size: 0.8em; letter-spacing: 3px;");
 
-    console.log(snapshot(getValuesByKeys(target, allPropertyNames)));
+    console.log(snapshot(pickObjectKeys(target, allPropertyNames)));
 
     if (meta) {
         console.log(`%c${meta.label.toUpperCase()}:`, "color: gray; font-size: 0.8em; letter-spacing: 3px;");

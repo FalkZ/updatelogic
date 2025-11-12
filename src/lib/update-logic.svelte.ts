@@ -2,33 +2,29 @@ import type { Constructor } from "type-fest";
 import { snapshot } from "./snapshot.svelte.js";
 import { isUninitialized } from "./uninitialized.js";
 import { isPromise } from "./utils.js";
-import { getValuesByKeys, log } from "./log.js";
+import { pickObjectKeys, log } from "./log.js";
 import { getAllPropertyNames } from "./get-all-property-names.js";
-import { browser } from "$app/environment";
 
-export type Logic<Data extends object = object> = {
-    data: Data;
-    initialized?: boolean;
-};
+type InternalLogicOptions = { className: string; logging: boolean; enforceImmutableData: boolean };
 
-type LogicOptions = {
-    logging: boolean;
-    enforceImmutableData: boolean;
-};
+const isObject = (value: unknown): value is object => typeof value === "object" && value !== null;
 
-type InternalLogicOptions = { className: string } & LogicOptions;
+const immutableWithWarning = <T extends object>(raw: T): T => {
+    return new Proxy(raw, {
+        get: (target, key) => {
+            const value = target[key as keyof T];
 
-const rawSymbol = Symbol("raw");
+            if (isObject(value)) {
+                return immutableWithWarning(value);
+            }
 
-export function computed<T>(t: () => T): Readonly<T> {
-    const raw = t();
-    const v = $derived(raw);
+            return value;
+        },
+        set: (target, key, value) => {
+            console.warn(`Attempted to mutate immutable data`, { target, key, value });
 
-    if (typeof raw !== "object" || raw === null) return v;
-
-    return new Proxy(v as typeof raw, {
-        get: (target, p) => target[p as keyof T],
-        // TODO: set with warning mutation
+            return true;
+        },
         getOwnPropertyDescriptor(target, prop) {
             return Object.getOwnPropertyDescriptor(target, prop);
         },
@@ -36,21 +32,42 @@ export function computed<T>(t: () => T): Readonly<T> {
             return Reflect.ownKeys(target);
         },
     }) as T;
+};
+
+export function computed<T>(t: () => T): Readonly<T> {
+    const raw = t();
+    const v = $derived(raw);
+
+    if (isObject(raw)) immutableWithWarning(v as typeof raw);
+
+    return v;
 }
 
+const rawSymbol = Symbol("raw");
 // @ts-expect-error: rawSymbol does not exist on any obj
 export const unwrapProxy = <Obj extends object>(obj: Obj): Obj => obj?.[rawSymbol] ?? obj;
 
 type DevTools = ReturnType<NonNullable<Window["__REDUX_DEVTOOLS_EXTENSION__"]>["connect"]>;
 
-const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicOptions) => {
+const createUpdateLogicInternal = <Obj extends object>(obj: Obj, options: InternalLogicOptions): Obj => {
     let devtools: DevTools;
 
     const allPropertyNames = getAllPropertyNames(obj);
 
     if (typeof window !== "undefined" && window.__REDUX_DEVTOOLS_EXTENSION__) {
         devtools = window.__REDUX_DEVTOOLS_EXTENSION__.connect({ name: options.className });
-        devtools.init(getValuesByKeys(obj, allPropertyNames));
+        devtools.init(pickObjectKeys(obj, allPropertyNames));
+
+        devtools.subscribe((message) => {
+            if (message.type === "DISPATCH" && message.state) {
+                // Parse the state from devtools
+                const newState = JSON.parse(message.state);
+
+                allPropertyNames.forEach((key) => {
+                    obj[key] = newState[key];
+                });
+            }
+        });
     }
 
     return new Proxy(obj, {
@@ -74,14 +91,14 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                             allPropertyNames,
                         });
 
-                        devtools?.send({ type: `→ ${prop}`, args }, getValuesByKeys(target, allPropertyNames));
+                        devtools?.send({ type: `→ ${prop}`, args }, pickObjectKeys(target, allPropertyNames));
                     }
 
                     let result;
                     try {
                         const proxyThis = options.enforceImmutableData
                             ? // remove enforceImmutableData that methods can mutate
-                              createLoggingProxy(target, {
+                              createUpdateLogicInternal(target, {
                                   ...options,
                                   enforceImmutableData: false,
                               })
@@ -103,7 +120,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                 },
                             });
 
-                            devtools?.send({ type: `❌ ${prop}`, args, error: err }, getValuesByKeys(target, allPropertyNames));
+                            devtools?.send({ type: `❌ ${prop}`, args, error: err }, pickObjectKeys(target, allPropertyNames));
                         }
                         throw err;
                     }
@@ -124,7 +141,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                         },
                                     });
 
-                                    devtools?.send({ type: `✓ ${prop}`, args, return: value }, getValuesByKeys(target, allPropertyNames));
+                                    devtools?.send({ type: `✓ ${prop}`, args, return: value }, pickObjectKeys(target, allPropertyNames));
                                 },
                                 (err: unknown) => {
                                     log({
@@ -139,7 +156,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                             data: err,
                                         },
                                     });
-                                    devtools?.send({ type: `❌ ${prop}`, args, error: err }, getValuesByKeys(target, allPropertyNames));
+                                    devtools?.send({ type: `❌ ${prop}`, args, error: err }, pickObjectKeys(target, allPropertyNames));
                                 },
                             );
                         } else {
@@ -155,7 +172,7 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
                                 },
                             });
 
-                            devtools?.send({ type: `✓ ${prop}`, args, return: result }, getValuesByKeys(target, allPropertyNames));
+                            devtools?.send({ type: `✓ ${prop}`, args, return: result }, pickObjectKeys(target, allPropertyNames));
                         }
                     }
 
@@ -165,27 +182,41 @@ const createLoggingProxy = <Obj extends Logic>(obj: Obj, options: InternalLogicO
 
             if (isUninitialized(value)) {
                 // TODO: warn
-                console.error(`Accessed "${String(prop)}" before initializing it.`);
+                console.warn(`Accessed "${String(prop)}" before initializing it.`);
             }
 
             if (options.enforceImmutableData) {
-                return computed(() => value);
+                const derivedValue = $derived(value);
+
+                if (isObject(value)) return immutableWithWarning(derivedValue as typeof value);
+
+                return derivedValue;
             }
 
             return value;
         },
-        set(target, prop, value) {
+        set(target, key, value) {
             if (options.enforceImmutableData) {
-                // TODO warn
-                console.error(`Tried to set field "${prop}" from outside the ${options.className} class to:`, value);
-            } else Reflect.set(target, prop, value);
+                console.warn(`Attempted to mutate immutable data`, { target, key, value });
+            } else Reflect.set(target, key, value);
 
             return true;
         },
     }) as Obj;
 };
 
-export const createUpdateLogic = <T extends Logic>(Class: Constructor<T>, options: Partial<LogicOptions> = {}) => {
+/**
+ *
+ * Creates an instance of a class with immutable state and derived properties.
+ *
+ * The Redux DevTools integration monitors every function call and
+ * tracks all state at that point. Install Redux DevTools browser extension
+ * to use this feature ([installation instructions](https://github.com/reduxjs/redux-devtools/tree/main/extension#installation)).
+ *
+ * @param Class - The class to use as base for state management
+ * @returns An enhanced instance of the supplied class
+ */
+export const createUpdateLogic = <T>(Class: Constructor<T>) => {
     const t = new Class();
 
     const className = Class.name || "<unnamed class>";
@@ -193,9 +224,8 @@ export const createUpdateLogic = <T extends Logic>(Class: Constructor<T>, option
     const internalOptions: InternalLogicOptions = {
         logging: import.meta.env.DEV,
         enforceImmutableData: true,
-        ...options,
         className,
     };
 
-    return createLoggingProxy(t, internalOptions) as T;
+    return createUpdateLogicInternal(t, internalOptions) as T;
 };
