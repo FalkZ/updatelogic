@@ -10,12 +10,12 @@ A lightweight, type-safe state management solution for Svelte 5 applications ins
 - **Automatic Updates** - State changes trigger UI updates
 - **Immutability Enforcement** - Prevents external mutation of state
 - **Structured Actions** - Actions and updates follow a consistent pattern within a single class
-- **Zero Config Logging** - Logs actions and state changes during development
-- **Lightweight** - Heavily uses Sveltes reactivity for updates and does not use any dependencies
+- **Redux DevTools Integration** - Debug with time-travel debugging and state inspection
+- **Lightweight** - Uses Svelte's built-in reactivity without external dependencies
 
 ## When to Use
 
-Updatelogic is ideal for client-side web applications with complex, interdependent state management needs. It particularly if your app's state has grown beyond simple component-level management but you don't want the overhead of Redux or similar libraries, updatelogic offers the perfect solution.
+Updatelogic fits perfectly when your application state has grown beyond simple component-level management. If you need centralized state but want to avoid the complexity of Redux or similar libraries, updatelogic provides the ideal balance of power and simplicity.
 
 ## Installation
 
@@ -51,7 +51,7 @@ export const logic = createUpdateLogic(Logic);
 ```svelte
 <!-- counter/+page.svelte -->
 <script lang="ts">
-    import { logic } from "./logic.svelte.js";
+    import { logic } from "./logic.svelte.ts";
 </script>
 
 <button onclick={logic.increment}>
@@ -97,7 +97,7 @@ export const logic = createUpdateLogic(Logic);
 ```svelte
 <!-- async/+page.svelte -->
 <script lang="ts">
-    import { logic } from "./logic.svelte.js";
+    import { logic } from "./logic.svelte.ts";
     logic.init();
 </script>
 
@@ -112,40 +112,23 @@ export const logic = createUpdateLogic(Logic);
 {/if}
 ```
 
-## Advanced Features
+## Enforced Immutability
 
-### Immutability Enforcement
-
-Updatelogic enforces that state can only be mutated within logic class methods, preventing accidental state modifications from outside:
+Updatelogic ensures that you can only change state within logic class methods. This prevents accidental modifications from outside:
 
 ```typescript
 // This works
 logic.increment();
 
-// This will log an error and not change the state
+// This logs a warning and leaves state unchanged
 logic.data.count = 5;
 ```
 
-### Development Logging
+## Redux DevTools Support
 
-During development, updatelogic automatically logs all method calls, their arguments, state changes and returns for easier debugging:
+Connect to Redux DevTools to inspect your application state in real-time. You can:
 
-```
-┏ increment
-  STATE:
-  { data: { counter: 0 } }
-┗ increment
-  STATE:
-   { data: { counter: 1 } }
-  RETURNED:
-  undefined
-```
-
-### Custom Configuration
-
-```typescript
-const logic = createUpdateLogic(Logic, {
-    logging: true, // Enable logging even in production
-    enforceImmutableData: false, // Allow external data mutations
-});
-```
+- View all state changes as they happen
+- Step through your application's history with time-travel debugging
+- Export and import state snapshots
+- Monitor action dispatches

@@ -2,10 +2,10 @@ import type { Constructor } from "type-fest";
 import { snapshot } from "./snapshot.svelte.js";
 import { isUninitialized } from "./uninitialized.js";
 import { isPromise } from "./utils.js";
-import { pickObjectKeys, log } from "./log.js";
+import { pickObjectKeys } from "./log.js";
 import { getAllPropertyNames } from "./get-all-property-names.js";
 
-type InternalLogicOptions = { className: string; logging: boolean; enforceImmutableData: boolean };
+type InternalLogicOptions = { className: string; enforceImmutableData: boolean };
 
 const isObject = (value: unknown): value is object => typeof value === "object" && value !== null;
 
@@ -83,14 +83,6 @@ const createUpdateLogicInternal = <Obj extends object>(obj: Obj, options: Intern
                     if (options.logging) {
                         args = snapshot(rawArgs);
 
-                        log({
-                            start: true,
-                            args,
-                            target,
-                            prop,
-                            allPropertyNames,
-                        });
-
                         devtools?.send({ type: `→ ${prop}`, args }, pickObjectKeys(target, allPropertyNames));
                     }
 
@@ -107,19 +99,6 @@ const createUpdateLogicInternal = <Obj extends object>(obj: Obj, options: Intern
                         result = value.apply(proxyThis, rawArgs);
                     } catch (err: unknown) {
                         if (options.logging) {
-                            log({
-                                start: false,
-                                args,
-                                target,
-                                allPropertyNames,
-                                prop,
-                                error: true,
-                                meta: {
-                                    label: "threw",
-                                    data: err,
-                                },
-                            });
-
                             devtools?.send({ type: `❌ ${prop}`, args, error: err }, pickObjectKeys(target, allPropertyNames));
                         }
                         throw err;
@@ -129,49 +108,13 @@ const createUpdateLogicInternal = <Obj extends object>(obj: Obj, options: Intern
                         if (isPromise(result)) {
                             result.then(
                                 (value) => {
-                                    log({
-                                        start: false,
-                                        args,
-                                        target,
-                                        allPropertyNames,
-                                        prop,
-                                        meta: {
-                                            label: "resolved",
-                                            data: value,
-                                        },
-                                    });
-
                                     devtools?.send({ type: `✓ ${prop}`, args, return: value }, pickObjectKeys(target, allPropertyNames));
                                 },
                                 (err: unknown) => {
-                                    log({
-                                        start: false,
-                                        args,
-                                        target,
-                                        allPropertyNames,
-                                        prop,
-                                        error: true,
-                                        meta: {
-                                            label: "rejected",
-                                            data: err,
-                                        },
-                                    });
                                     devtools?.send({ type: `❌ ${prop}`, args, error: err }, pickObjectKeys(target, allPropertyNames));
                                 },
                             );
                         } else {
-                            log({
-                                start: false,
-                                args,
-                                target,
-                                allPropertyNames,
-                                prop,
-                                meta: {
-                                    label: "returned",
-                                    data: result,
-                                },
-                            });
-
                             devtools?.send({ type: `✓ ${prop}`, args, return: result }, pickObjectKeys(target, allPropertyNames));
                         }
                     }
@@ -222,7 +165,6 @@ export const createUpdateLogic = <T>(Class: Constructor<T>) => {
     const className = Class.name || "<unnamed class>";
 
     const internalOptions: InternalLogicOptions = {
-        logging: import.meta.env.DEV,
         enforceImmutableData: true,
         className,
     };
