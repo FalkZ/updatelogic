@@ -1,13 +1,12 @@
 {
     "name": "updatelogic",
-    "version": "0.0.13",
-    "license": "MIT",
+    "version": "2.0.0",
     "scripts": {
         "dev": "vite dev",
         "build": "vite build && npm run prepack",
         "preview": "vite preview",
         "prepare": "svelte-kit sync || echo ''",
-        "prepack": "svelte-kit sync && svelte-package && pnpm lint && publint",
+        "prepack": "bunx svelte-kit sync && bunx svelte-package && bunx publint",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "format": "prettier --write .",
@@ -36,43 +35,36 @@
         "svelte": "^5.0.0"
     },
     "devDependencies": {
-        "@eslint/compat": "^1.2.5",
-        "@eslint/js": "^9.18.0",
-        "@sveltejs/adapter-auto": "^4.0.0",
-        "@sveltejs/kit": "^2.16.0",
-        "@sveltejs/package": "^2.0.0",
-        "@sveltejs/vite-plugin-svelte": "^5.0.0",
-        "@testing-library/jest-dom": "^6.6.3",
-        "@testing-library/svelte": "^5.2.4",
-        "eslint": "^9.18.0",
-        "eslint-config-prettier": "^10.0.1",
-        "eslint-plugin-svelte": "^3.0.0",
-        "globals": "^16.0.0",
-        "jsdom": "^26.0.0",
-        "prettier": "^3.4.2",
-        "prettier-plugin-svelte": "^3.3.3",
-        "publint": "^0.3.2",
-        "svelte": "^5.0.0",
-        "svelte-check": "^4.0.0",
-        "type-fest": "^4.39.1",
-        "typescript": "^5.0.0",
-        "typescript-eslint": "^8.20.0",
-        "vite": "^6.2.5",
-        "vitest": "^3.0.0"
+        "@eslint/compat": "^1.4.0",
+        "@eslint/js": "^9.38.0",
+        "@redux-devtools/extension": "^3.3.0",
+        "@sveltejs/adapter-auto": "^7.0.0",
+        "@sveltejs/kit": "^2.47.1",
+        "@sveltejs/package": "^2.5.4",
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@types/node": "^22",
+        "@vitest/browser-playwright": "^4.0.5",
+        "eslint": "^9.38.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-svelte": "^3.12.4",
+        "globals": "^16.4.0",
+        "playwright": "^1.56.1",
+        "prettier": "^3.6.2",
+        "prettier-plugin-svelte": "^3.4.0",
+        "ijw": "file:../effectlayer/packages/ijw",
+        "publint": "^0.3.14",
+        "svelte": "^5.41.0",
+        "svelte-check": "^4.3.3",
+        "type-fest": "^5.2.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.46.1",
+        "vite": "^7.1.10",
+        "vitest": "^4.0.5",
+        "vitest-browser-svelte": "^2.0.1"
     },
     "keywords": [
-        "svelte",
-        "svelte-5",
-        "MVC",
-        "MVU",
-        "logging",
-        "state",
-        "management",
-        "redux"
+        "svelte"
     ],
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "esbuild"
-        ]
-    }
+    "prettier": "ijw/prettier",
+    "packageManager": "bun@1.3.0"
 }
