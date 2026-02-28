@@ -8,7 +8,6 @@ A lightweight, type-safe state management solution for Svelte 5 applications ins
 
 - **Centralized State** - Application state is organized in one location
 - **Automatic Updates** - State changes trigger UI updates
-- **Immutability Enforcement** - Prevents external mutation of state
 - **Structured Actions** - Actions and updates follow a consistent pattern within a single class
 - **Redux DevTools Integration** - Debug with time-travel debugging and state inspection
 - **Lightweight** - Uses Svelte's built-in reactivity without external dependencies
@@ -25,110 +24,78 @@ npm install updatelogic
 
 ## Basic Usage
 
-### 1. Define your logic class
+Define a state class and create logic methods that modify it:
 
 ```typescript
-// counter/logic.svelte.ts
-import { createUpdateLogic } from "updatelogic";
+// counter.svelte.ts
+import { updatelogic } from "updatelogic";
 
-type Data = {
-    count: number;
-};
-
-class Logic {
-    data: Data = $state({ count: 0 });
-
-    increment() {
-        this.data.count += 1;
-    }
+class State {
+    count = $state(0);
+    doubled = $derived(this.count * 2);
 }
 
-export const logic = createUpdateLogic(Logic);
+export const state = new State();
+
+export const logic = updatelogic(
+    {
+        name: "counter",
+        state,
+    },
+    {
+        increment() {
+            state.count++;
+        },
+    },
+);
 ```
 
-### 2. Use the logic in any component
+Use the logic and state in your components:
 
 ```svelte
-<!-- counter/+page.svelte -->
 <script lang="ts">
-    import { logic } from "./logic.svelte.ts";
+    import { state, logic } from "./counter.svelte.ts";
 </script>
 
 <button onclick={logic.increment}>
-    clicks: {logic.data.count}
+    clicks: {state.count}
 </button>
 ```
 
-## Async Operations
+## Configuration
 
-Updatelogic handles asynchronous operations elegantly with built-in loading state:
+The `updatelogic` function takes two arguments:
 
-```typescript
-// async/logic.svelte.ts
-import { uninitialized, createUpdateLogic } from "updatelogic";
+1. **Config object** with:
+    - `state`: Your state class instance
+    - `name` (optional): Name for Redux DevTools
+    - `excludeInDevTools` (optional): Array of method names to exclude from DevTools
 
-type Data = {
-    names: string[];
-};
-
-const getNames = async (filter: string = "") => {
-    const response = await fetch(`./async/api?filter=${encodeURIComponent(filter)}`);
-    return response.json();
-};
-
-class Logic {
-    data: Data = $state(uninitialized);
-    initialized = $state(false);
-
-    async init() {
-        this.data = await getNames();
-        this.initialized = true;
-    }
-
-    async setFilter(filter: string) {
-        const { names } = await getNames(filter);
-        this.data = { names };
-    }
-}
-
-export const logic = createUpdateLogic(Logic);
-```
-
-```svelte
-<!-- async/+page.svelte -->
-<script lang="ts">
-    import { logic } from "./logic.svelte.ts";
-    logic.init();
-</script>
-
-{#if logic.initialized}
-    <input placeholder="Filter Names" onchange={(e) => logic.setFilter(e.currentTarget.value)} />
-
-    <ul>
-        {#each logic.data.names as name}
-            <li>{name}</li>
-        {/each}
-    </ul>
-{/if}
-```
-
-## Enforced Immutability
-
-Updatelogic ensures that you can only change state within logic class methods. This prevents accidental modifications from outside:
+2. **Logic object** with methods that modify state
 
 ```typescript
-// This works
-logic.increment();
-
-// This logs a warning and leaves state unchanged
-logic.data.count = 5;
+const logic = updatelogic(
+    {
+        state,
+        excludeInDevTools: ["helperMethod"],
+    },
+    {
+        helperMethod() {
+            state.count++;
+        },
+        increment() {
+            this.helperMethod();
+        },
+    },
+);
 ```
 
 ## Redux DevTools Support
 
-Connect to Redux DevTools to inspect your application state in real-time. You can:
+Install the Redux DevTools browser extension to inspect your state. Updatelogic tracks every method call and logs state changes with visual indicators:
 
-- View all state changes as they happen
-- Step through your application's history with time-travel debugging
-- Export and import state snapshots
-- Monitor action dispatches
+- `→` Method started
+- `✓` Method completed successfully
+- `❌` Method failed with error
+
+You can view state snapshots, step through history, and monitor all actions.
